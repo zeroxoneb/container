@@ -25,6 +25,15 @@ test_results/
 *.pkg
 *.swp
 
+# Local kernel build outputs and the downloaded Linux tarball.
+kernel/out/
+kernel/source.tar.gz
+kernel/source.tar.xz
+kernel/source.tar
+kernel/source.version
+kernel/vmlinux*
+kernel/vmlinuz*
+
 # Coverage artifacts
 *.profraw
 coverage-reports/

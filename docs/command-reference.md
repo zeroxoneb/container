@@ -1122,6 +1122,7 @@ container machine create [<options>] <image>
 *   `--home-mount <home-mount>`: User's home directory mount option (ro, rw, none). Default: rw
 *   `--virtualization`: Enable nested virtualization. Requires Apple Silicon M3+ and macOS 15+ and kernel with CONFIG_KVM=y.
 *   `--kernel <path>`: Path to a custom kernel binary (e.g. `vmlinux`).
+*   `--disk <spec>`: Attach a host raw disk image as virtio-blk. Repeat the option for more than one disk. The image must already hold the filesystem. Spec form: `source=PATH,dest=PATH,format=FS[,ro][,k=v...]`.
 
 **Management Options**
 
@@ -1162,6 +1163,9 @@ container machine create --no-boot alpine:3.22
 
 # enable nested virtualization with a custom kernel built with CONFIG_KVM=y
 container machine create --virtualization --kernel ./vmlinux-kvm alpine:3.22
+
+# attach a raw disk that already holds an ext4 filesystem
+container machine create --disk source=/tmp/data.raw,dest=/mnt/data,format=ext4 alpine:3.22
 ```
 
 ### `container machine run`
@@ -1267,6 +1271,8 @@ container machine set [--name <name>] [--debug] <setting> ...
 **Options**
 
 *   `-n, --name <name>`: Container machine ID (uses default if not specified)
+*   `--disk <spec>`: Replace extra disks. Repeat the option. Spec form: `source=PATH,dest=PATH,format=FS[,ro][,k=v...]`.
+*   `--disk-clear`: Remove all extra disks. Do not combine this flag with `--disk`.
 
 **Examples**
 
@@ -1282,6 +1288,10 @@ container machine set virtualization=true kernel=/opt/kernels/vmlinux-kvm
 
 # clear the custom kernel override
 container machine set kernel=
+
+# replace extra disks, or remove them
+container machine set --disk source=/tmp/data.raw,dest=/mnt/data,format=ext4
+container machine set --disk-clear
 ```
 
 ### `container machine set-default`

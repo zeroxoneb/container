@@ -83,6 +83,21 @@ container machine run -n dev -- nproc
 
 Memory defaults to half of host memory. The home-mount can be `rw` (default), `ro`, or `none`.
 
+### Extra disks
+
+`machine create --disk` attaches a host raw disk image as virtio-blk. Repeat the option for more than one disk. The image must already hold the filesystem. This command does not format the disk.
+
+The spec form is `source=PATH,dest=PATH,format=FS[,ro][,k=v...]`. `source` is an absolute host path. `dest` is an absolute guest path. `format` is the guest filesystem type, for example `btrfs` or `ext4`. Other `k=v` pairs are guest mount options, for example `subvolid=5`.
+
+```bash
+container machine create \
+    --disk source=/tmp/data.raw,dest=/mnt/data,format=ext4 \
+    --name data \
+    alpine:latest
+```
+
+`machine set --disk` replaces the disk list. `machine set --disk-clear` removes every extra disk. Stop the machine and start it again before the new list takes effect.
+
 ### Nested virtualization and custom kernels
 
 A container machine supports nested virtualization. The requirements for this to work are:
