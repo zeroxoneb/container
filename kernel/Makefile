@@ -12,14 +12,15 @@
 # See the License for the specific information governing permissions and
 # limitations under the License.
 
-# RC tarballs live on git.kernel.org, not cdn.kernel.org.
-KVERSION ?= 7.3-rc3
-KSOURCE ?= https://git.kernel.org/torvalds/t/linux-$(KVERSION).tar.gz
+# Stable releases live on cdn.kernel.org. Set KSHA256 with KVERSION.
+KVERSION ?= 7.3.1
+KSOURCE ?= https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-$(KVERSION).tar.xz
+KSHA256 ?= fa595aad93734f829c963c2a90ef7c3673224fd7fdae7b49406e397cde2de231
 KIMAGE ?= kernel-build:7.3
 MAKEFILE_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 GIT_VERSION := $(shell git -C $(MAKEFILE_DIR) rev-parse --short=12 HEAD 2>/dev/null || echo unknown)
 TARGET_ARCH ?=
-SOURCE_TAR := $(MAKEFILE_DIR)/source.tar.gz
+SOURCE_TAR := $(MAKEFILE_DIR)/source.tar.xz
 SOURCE_STAMP := $(MAKEFILE_DIR)/source.version
 
 # Resolve the effective target arch (TARGET_ARCH override, else host).
@@ -57,8 +58,9 @@ download-source:
 		echo "Downloading linux-$(KVERSION)..." ; \
 		curl -fL --retry 3 --retry-delay 2 -o "$(SOURCE_TAR).tmp" "$(KSOURCE)" ; \
 		mv "$(SOURCE_TAR).tmp" "$(SOURCE_TAR)" ; \
+		echo "$(KSHA256)  $(SOURCE_TAR)" | shasum -a 256 -c - ; \
 		echo "$(KVERSION)" > "$(SOURCE_STAMP)" ; \
-		rm -f "$(MAKEFILE_DIR)/source.tar.xz" ; \
+		rm -f "$(MAKEFILE_DIR)/source.tar.gz" ; \
 	fi
 
 .PHONY: kernel-build

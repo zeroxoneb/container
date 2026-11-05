@@ -2,7 +2,7 @@
 
 This directory holds a kernel configuration for container use.
 
-The current tree is Linux 7.3-rc3. It sets `CONFIG_BTRFS_FS=y` and `CONFIG_BTRFS_EXPERIMENTAL=y`. That set includes async data checksums, huge data folios, raid-stripe-tree, and extent tree v2.
+The current tree is Linux 7.3.1, the newest 7.3 release. It sets `CONFIG_BTRFS_FS=y` and `CONFIG_BTRFS_EXPERIMENTAL=y`. That set includes async data checksums, huge data folios, raid-stripe-tree, and extent tree v2.
 
 - `config-arm64` and `config-x86_64` hold the per-arch `CONFIG_` options. See `LICENSE.kernel-configs`.
 - `Makefile` sets the kernel version (`KVERSION`) and the source package URL.
