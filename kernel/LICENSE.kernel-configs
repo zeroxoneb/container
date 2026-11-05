@@ -1,0 +1,5 @@
+# Kernel config license
+
+`config-arm64` and `config-x86_64` are Linux kernel configuration files. The Linux kernel license is GPL-2.0-only. These files use that license.
+
+`Makefile` and `build.sh` stay Apache-2.0. Read the headers in those files.
