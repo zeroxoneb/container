@@ -357,12 +357,17 @@ public actor MachinesService {
             let rootfs = try bundle.machineRootfs
 
             let bootConfig = state.snapshot.bootConfig
+            for disk in bootConfig.disks {
+                try MachineDisk.validateSource(disk.source)
+            }
+
             var config = try await state.snapshot.configuration.toContainerConfig(
                 cid: cid,
                 sbin: path.appending(MachineBundle.sbinDirectory),
                 initializedFile: path.appending(MachineBundle.initializedFile),
                 homeMountOption: bootConfig.homeMount,
                 virtualization: bootConfig.virtualization,
+                disks: bootConfig.disks,
             )
 
             config.resources.cpus = bootConfig.cpus
@@ -638,6 +643,7 @@ extension MachineConfiguration {
         initializedFile: FilePath,
         homeMountOption: MachineConfig.HomeMountOption,
         virtualization: Bool,
+        disks: [MachineDisk] = [],
     ) async throws -> ContainerConfiguration {
         var config = ContainerConfiguration(
             id: cid,
@@ -669,6 +675,20 @@ extension MachineConfiguration {
                     source: home,
                     destination: home,
                     options: [homeMountOption.rawValue]
+                )
+            )
+        }
+        for disk in disks {
+            var options = disk.mountOptions
+            if disk.readonly {
+                options.append("ro")
+            }
+            config.mounts.append(
+                .block(
+                    format: disk.format,
+                    source: disk.source,
+                    destination: disk.destination,
+                    options: options
                 )
             )
         }

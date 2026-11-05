@@ -56,6 +56,8 @@ public struct MachineConfig: Codable, Sendable {
     public let virtualization: Bool
     /// Optional path to a custom kernel binary. nil falls back to the system default.
     public let kernelPath: FilePath?
+    /// Extra host raw disk images attached as virtio-blk on each boot.
+    public let disks: [MachineDisk]
 
     private enum CodingKeys: String, CodingKey {
         case cpus
@@ -63,6 +65,7 @@ public struct MachineConfig: Codable, Sendable {
         case homeMount
         case virtualization
         case kernelPath
+        case disks
     }
 
     /// Settable keys and their descriptions, for CLI help text generation.
@@ -79,13 +82,15 @@ public struct MachineConfig: Codable, Sendable {
         memory: MemorySize?,
         homeMount: HomeMountOption?,
         virtualization: Bool?,
-        kernelPath: FilePath?
+        kernelPath: FilePath?,
+        disks: [MachineDisk]? = nil
     ) throws {
         self.cpus = cpus ?? Self.defaultCPUs
         self.memory = memory ?? Self.defaultMemory
         self.homeMount = homeMount ?? Self.defaultHomeMount
         self.virtualization = virtualization ?? false
         self.kernelPath = kernelPath
+        self.disks = disks ?? []
 
         try self.validate()
     }
@@ -101,13 +106,18 @@ public struct MachineConfig: Codable, Sendable {
         // which the project's ConfigSnapshotDecoder can't handle. Persist as a plain String
         // and lift to FilePath in memory.
         let kernelPath = try container.decodeIfPresent(String.self, forKey: .kernelPath).map { FilePath($0) }
+        // ConfigSnapshotDecoder (config.toml) only supports arrays of primitives,
+        // so disks persist as spec strings rather than an array of structs.
+        let diskSpecs = try container.decodeIfPresent([String].self, forKey: .disks) ?? []
+        let disks = try diskSpecs.map { try MachineDisk.parse($0) }
 
         try self.init(
             cpus: cpus,
             memory: memory,
             homeMount: homeMount,
             virtualization: virtualization,
-            kernelPath: kernelPath)
+            kernelPath: kernelPath,
+            disks: disks)
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -117,6 +127,9 @@ public struct MachineConfig: Codable, Sendable {
         try container.encode(homeMount, forKey: .homeMount)
         try container.encode(virtualization, forKey: .virtualization)
         try container.encodeIfPresent(kernelPath?.string, forKey: .kernelPath)
+        if !disks.isEmpty {
+            try container.encode(disks.map(\.specString), forKey: .disks)
+        }
     }
 
     private func validate() throws {
@@ -133,6 +146,8 @@ public struct MachineConfig: Codable, Sendable {
                 message: "invalid memory value '\(self.memory)'. Must be greater than 1gb."
             )
         }
+
+        try MachineDisk.validateList(self.disks)
     }
 }
 
@@ -148,7 +163,7 @@ extension MachineConfig {
 
     /// Create a new MachineConfig from `self`, applying fields defined in `kwargs`
     /// This function is used in both `machine create` and `machine set`
-    public func with(_ kwargs: [String: String]) throws -> MachineConfig {
+    public func with(_ kwargs: [String: String], disks: [MachineDisk]? = nil) throws -> MachineConfig {
         let validKeys = Set(Self.settableKeys.map(\.key))
         let unknownKeys = Set(kwargs.keys).subtracting(validKeys)
         guard unknownKeys.isEmpty else {
@@ -174,7 +189,8 @@ extension MachineConfig {
             memory: memory ?? self.memory,
             homeMount: homeMount ?? self.homeMount,
             virtualization: virtualization ?? self.virtualization,
-            kernelPath: kernelPath
+            kernelPath: kernelPath,
+            disks: disks ?? self.disks
         )
     }
 

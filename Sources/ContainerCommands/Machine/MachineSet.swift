@@ -36,6 +36,15 @@ extension Application {
         @Option(name: [.short, .long], help: "Container machine ID (uses default if not specified)")
         public var name: String?
 
+        @Option(
+            name: .long,
+            help: "Replace extra disks (source=PATH,dest=PATH,format=FS[,ro][,k=v...]). Repeatable."
+        )
+        public var disk: [String] = []
+
+        @Flag(name: .customLong("disk-clear"), help: "Remove all extra disks")
+        public var diskClear: Bool = false
+
         @Argument(
             parsing: .remaining,
             help: ArgumentHelp(
@@ -47,7 +56,7 @@ extension Application {
         public var rawArgs: [String] = []
 
         public func run() async throws {
-            guard !rawArgs.isEmpty else {
+            guard !rawArgs.isEmpty || !disk.isEmpty || diskClear else {
                 throw ContainerizationError(.invalidArgument, message: "expected at least one configuration value (e.g., machine set cpus=4)")
             }
 
@@ -75,7 +84,26 @@ extension Application {
                 validatedKwargs["kernel"] = try MachineConfig.validateKernelPath(raw).string
             }
 
-            let newConfig = try snapshot.bootConfig.with(validatedKwargs)
+            if diskClear && !disk.isEmpty {
+                throw ContainerizationError(
+                    .invalidArgument,
+                    message: "cannot combine --disk-clear with --disk"
+                )
+            }
+            let disks: [MachineDisk]?
+            if diskClear {
+                disks = []
+            } else if !disk.isEmpty {
+                disks = try disk.map { spec in
+                    let parsed = try MachineDisk.parse(spec)
+                    try MachineDisk.validateSource(parsed.source)
+                    return parsed
+                }
+            } else {
+                disks = nil
+            }
+
+            let newConfig = try snapshot.bootConfig.with(validatedKwargs, disks: disks)
 
             try await client.setConfig(id: resolvedName, bootConfig: newConfig)
 

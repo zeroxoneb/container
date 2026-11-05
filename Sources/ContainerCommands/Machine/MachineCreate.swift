@@ -74,6 +74,12 @@ extension Application {
         @Option(name: .long, help: "Path to a custom kernel binary (e.g. vmlinux).")
         public var kernel: String?
 
+        @Option(
+            name: .long,
+            help: "Attach a host raw disk image as virtio-blk (source=PATH,dest=PATH,format=FS[,ro][,k=v...]). Repeatable."
+        )
+        public var disk: [String] = []
+
         @Argument(help: "Container image reference (e.g., alpine:3.22)")
         var image: String
 
@@ -98,6 +104,11 @@ extension Application {
             let containerSystemConfig: ContainerSystemConfig = try await ConfigurationLoader.load()
             let defaultConfig = containerSystemConfig.machine
 
+            let disks = try disk.map { spec in
+                let parsed = try MachineDisk.parse(spec)
+                try MachineDisk.validateSource(parsed.source)
+                return parsed
+            }
             let bootConfig = try defaultConfig.with(
                 [
                     "cpus": cpus.map { "\($0)" },
@@ -105,7 +116,8 @@ extension Application {
                     "home-mount": homeMount,
                     "virtualization": virtualization ? "true" : nil,
                     "kernel": resolvedKernel?.string,
-                ].compactMapValues { $0 }
+                ].compactMapValues { $0 },
+                disks: disks
             )
 
             let id: String

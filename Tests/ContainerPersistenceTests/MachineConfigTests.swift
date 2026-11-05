@@ -74,6 +74,91 @@ struct MachineConfigTests {
         #expect(decoded.cpus == 4)
         #expect(decoded.virtualization == false)
         #expect(decoded.kernelPath == nil)
+        #expect(decoded.disks.isEmpty)
+    }
+
+    @Test func parseDiskSpec() throws {
+        let disk = try MachineDisk.parse("source=/tmp/data.raw,dest=/mnt/btrfs,format=btrfs")
+        #expect(disk.source == "/tmp/data.raw")
+        #expect(disk.destination == "/mnt/btrfs")
+        #expect(disk.format == "btrfs")
+        #expect(disk.readonly == false)
+        #expect(disk.mountOptions.isEmpty)
+    }
+
+    @Test func parseDiskSpecMountOptions() throws {
+        let disk = try MachineDisk.parse(
+            "source=/tmp/data.raw,dest=/run/fs/control,format=btrfs,subvolid=5,user_subvol_rm_allowed")
+        #expect(disk.destination == "/run/fs/control")
+        #expect(disk.mountOptions == ["subvolid=5", "user_subvol_rm_allowed"])
+        #expect(disk.specString.contains("subvolid=5"))
+        #expect(disk.specString.contains("user_subvol_rm_allowed"))
+    }
+
+    @Test func parseDiskSpecReadonly() throws {
+        let disk = try MachineDisk.parse("source=/tmp/data.raw,destination=/mnt/data,format=ext4,ro")
+        #expect(disk.destination == "/mnt/data")
+        #expect(disk.format == "ext4")
+        #expect(disk.readonly == true)
+    }
+
+    @Test func parseDiskSpecRejectsRelativeDest() {
+        #expect(throws: ContainerizationError.self) {
+            try MachineDisk.parse("source=/tmp/data.raw,dest=mnt/btrfs,format=btrfs")
+        }
+    }
+
+    @Test func withReplacesDisks() throws {
+        let disk = MachineDisk(source: "/tmp/data.raw", destination: "/mnt/btrfs", format: "btrfs")
+        let updated = try MachineConfig.default.with([:], disks: [disk])
+        #expect(updated.disks == [disk])
+        let cleared = try updated.with([:], disks: [])
+        #expect(cleared.disks.isEmpty)
+    }
+
+    @Test func parseDiskSpecRejectsTrailingComma() {
+        #expect(throws: ContainerizationError.self) {
+            try MachineDisk.parse("source=/tmp/data.raw,dest=/mnt/btrfs,format=btrfs,")
+        }
+    }
+
+    @Test func parseDiskSpecRejectsRepeatKey() {
+        #expect(throws: ContainerizationError.self) {
+            try MachineDisk.parse("source=/tmp/a.raw,source=/tmp/b.raw,dest=/mnt/btrfs,format=btrfs")
+        }
+        #expect(throws: ContainerizationError.self) {
+            try MachineDisk.parse("source=/tmp/a.raw,dest=/mnt/a,destination=/mnt/b,format=btrfs")
+        }
+    }
+
+    @Test func parseDiskSpecRejectsBadFormat() {
+        #expect(throws: ContainerizationError.self) {
+            try MachineDisk.parse("source=/tmp/data.raw,dest=/mnt/btrfs,format=bt rfs")
+        }
+    }
+
+    @Test func withRejectsRepeatGuestPath() throws {
+        let first = MachineDisk(source: "/tmp/a.raw", destination: "/mnt/data", format: "ext4")
+        let second = MachineDisk(source: "/tmp/b.raw", destination: "/mnt/data", format: "ext4")
+        #expect(throws: ContainerizationError.self) {
+            try MachineConfig.default.with([:], disks: [first, second])
+        }
+    }
+
+    @Test func withRejectsRepeatSource() throws {
+        let first = MachineDisk(source: "/tmp/a.raw", destination: "/mnt/a", format: "ext4")
+        let second = MachineDisk(source: "/tmp/a.raw", destination: "/mnt/b", format: "ext4")
+        #expect(throws: ContainerizationError.self) {
+            try MachineConfig.default.with([:], disks: [first, second])
+        }
+    }
+
+    @Test func roundTripJSONIncludesDisks() throws {
+        let disk = MachineDisk(source: "/tmp/data.raw", destination: "/mnt/btrfs", format: "btrfs", readonly: true)
+        let config = try MachineConfig.default.with([:], disks: [disk])
+        let data = try JSONEncoder().encode(config)
+        let decoded = try JSONDecoder().decode(MachineConfig.self, from: data)
+        #expect(decoded.disks == [disk])
     }
 
     @Test func roundTripJSON() throws {

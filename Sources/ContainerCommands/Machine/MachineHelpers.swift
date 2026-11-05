@@ -59,7 +59,9 @@ func bootMachine(
 ) async throws -> MachineSnapshot {
     var dynamicEnv: [String: String] = [:]
     if let sshAuthSock = ProcessInfo.processInfo.environment["SSH_AUTH_SOCK"] {
-        dynamicEnv["SSH_AUTH_SOCK"] = sshAuthSock
+        // Follow ~/.ssh/ssh.auth (and similar pointers) to the real unix socket.
+        let resolved = URL(fileURLWithPath: sshAuthSock).resolvingSymlinksInPath().path
+        dynamicEnv["SSH_AUTH_SOCK"] = FileManager.default.fileExists(atPath: resolved) ? resolved : sshAuthSock
     }
     let snapshot = try await client.boot(id: id, dynamicEnv: dynamicEnv)
 
